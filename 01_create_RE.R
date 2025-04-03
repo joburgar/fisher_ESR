@@ -1,0 +1,95 @@
+#####################################################################################
+# Copyright 2021 Province of British Columbia
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and limitations under the License.
+#
+#####################################################################################
+
+#####################################################################################
+# 01_create_RE.R
+# script to create range extemt (Nature Serve) from Maxent output
+# written by Joanna Burgar (Joanna.Burgar@gov.bc.ca) - 3-Apr-2025
+#####################################################################################
+R_version <- paste0("R-",version$major,".",version$minor)
+.libPaths(paste0("C:/Program Files/R/",R_version,"/library")) # to ensure reading/writing libraries from C drive
+
+# Load Packages
+list.of.packages <- c("tidyverse","sf","terra")
+
+# Check you have them and load them
+new.packages <- list.of.packages[!(list.of.packages %in% installed.packages()[,"Package"])]
+if(length(new.packages)) install.packages(new.packages)
+lapply(list.of.packages, require, character.only = TRUE)
+#####################################################################################
+
+# Load raster files
+raster_fDir <- "//sfp.idir.bcgov/S140/S40203/Ecosystems/Conservation Science/Species/Mesocarnivores/Projects/MMP/3.Analysis_Conceptual/Maxent/"
+
+PEPE_bioclim <- rast(paste0(raster_fDir,"PEPE_bioclim_elev_suitability.tif"))
+PEPE_bec <- rast(paste0(raster_fDir,"PEPE_BEC_suitability.tif"))
+
+# Check the stack
+print(PEPE_bioclim)
+print(PEPE_bec)
+
+plot(PEPE_bioclim)
+plot(PEPE_bec)
+
+
+# Check values
+hist(values(PEPE_bec))
+hist(values(PEPE_bioclim))
+
+# Adjust values to classes
+# 0.0-0.10 = not fisher habitat
+# 0.1-0.20 = unlikely fisher habitat
+# 0.2-0.40 = possible fisher habitat (dispersing) 
+# 0.4-0.60 = likely fisher habitat
+# >0.60 = suitable fisher habitat
+
+# Define classification matrix
+reclass_matrix <- matrix(c(
+  0.00, 0.10, 1,  # not fisher habitat
+  0.10, 0.20, 2,  # unlikely fisher habitat
+  0.20, 0.40, 3,  # possible fisher habitat (dispersing)
+  0.40, 0.60, 4,  # likely fisher habitat
+  0.60, 1.00, 5   # suitable fisher habitat
+), ncol = 3, byrow = TRUE)
+
+# Apply classification
+PEPE_bec_reclass <- classify(PEPE_bec, reclass_matrix)
+PEPE_bioclim_reclass <- classify(PEPE_bioclim, reclass_matrix)
+
+# Plot results
+plot(PEPE_bec_reclass, main="Reclassified PEPE_bec")
+plot(PEPE_bioclim_reclass, main="Reclassified PEPE_bioclim")
+
+###--- Export as both rasters and polygon shapefiles
+# Define file paths for output
+raster_output_path <- "PEPE_bec_reclassified.tif"
+polygon_output_path <- "PEPE_bec_reclassified.shp"
+
+# Export reclassified raster
+writeRaster(PEPE_bec_reclass, raster_output_path, overwrite=TRUE, datatype="INT2S")
+
+# Convert raster to polygons (vectorize)
+PEPE_bec_polygon <- as.polygons(PEPE_bec_reclass, trunc=TRUE, dissolve=TRUE)
+
+# Export as shapefile
+writeVector(PEPE_bec_polygon, polygon_output_path, overwrite=TRUE)
+
+# Repeat for PEPE_bioclim
+raster_output_path2 <- "PEPE_bioclim_reclassified.tif"
+polygon_output_path2 <- "PEPE_bioclim_reclassified.shp"
+
+writeRaster(PEPE_bioclim_reclass, raster_output_path2, overwrite=TRUE, datatype="INT2S")
+PEPE_bioclim_polygon <- as.polygons(PEPE_bioclim_reclass, trunc=TRUE, dissolve=TRUE)
+writeVector(PEPE_bioclim_polygon, polygon_output_path2, overwrite=TRUE)
