@@ -56,7 +56,7 @@ hist(values(PEPE_bioclim))
 # >0.60 = suitable fisher habitat
 
 # Define classification matrix
-reclass_matrix <- matrix(c(
+reclass_matrix_bec <- matrix(c(
   0.00, 0.10, 1,  # not fisher habitat
   0.10, 0.20, 2,  # unlikely fisher habitat
   0.20, 0.40, 3,  # possible fisher habitat (dispersing)
@@ -64,9 +64,18 @@ reclass_matrix <- matrix(c(
   0.60, 1.00, 5   # suitable fisher habitat
 ), ncol = 3, byrow = TRUE)
 
+reclass_matrix_bio <- matrix(c(
+  0.00, 0.15, 1,  # not fisher habitat
+  0.15, 0.20, 2,  # unlikely fisher habitat
+  0.20, 0.40, 3,  # possible fisher habitat (dispersing)
+  0.40, 0.60, 4,  # likely fisher habitat
+  0.60, 1.00, 5   # suitable fisher habitat
+), ncol = 3, byrow = TRUE)
+
+
 # Apply classification
-PEPE_bec_reclass <- classify(PEPE_bec, reclass_matrix)
-PEPE_bioclim_reclass <- classify(PEPE_bioclim, reclass_matrix)
+PEPE_bec_reclass <- classify(PEPE_bec, reclass_matrix_bec)
+PEPE_bioclim_reclass <- classify(PEPE_bioclim, reclass_matrix_bio)
 
 # Plot results
 plot(PEPE_bec_reclass, main="Reclassified PEPE_bec")
