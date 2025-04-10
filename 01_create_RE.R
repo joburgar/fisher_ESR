@@ -15,7 +15,7 @@
 
 #####################################################################################
 # 01_create_RE.R
-# script to create range extemt (Nature Serve) from Maxent output
+# script to create range extent (Nature Serve) from Maxent output
 # written by Joanna Burgar (Joanna.Burgar@gov.bc.ca) - 3-Apr-2025
 #####################################################################################
 R_version <- paste0("R-",version$major,".",version$minor)
@@ -65,12 +65,15 @@ reclass_matrix_bec <- matrix(c(
 ), ncol = 3, byrow = TRUE)
 
 reclass_matrix_bio <- matrix(c(
-  0.00, 0.15, 1,  # not fisher habitat
-  0.15, 0.20, 2,  # unlikely fisher habitat
+  0.00, 0.10, 1,  # not fisher habitat
+  0.10, 0.20, 2,  # unlikely fisher habitat
   0.20, 0.40, 3,  # possible fisher habitat (dispersing)
   0.40, 0.60, 4,  # likely fisher habitat
   0.60, 1.00, 5   # suitable fisher habitat
 ), ncol = 3, byrow = TRUE)
+
+# for Boreal bioclim (reclass2), with fewer sample locations went with a reclass  of <0.05 as not fisher habitat (1),
+# for Colmbian bioclim (reclass), with more sample locations went with a reclass  of <0.15 as not fisher habitat (1),
 
 
 # Apply classification
@@ -80,6 +83,27 @@ PEPE_bioclim_reclass <- classify(PEPE_bioclim, reclass_matrix_bio)
 # Plot results
 plot(PEPE_bec_reclass, main="Reclassified PEPE_bec")
 plot(PEPE_bioclim_reclass, main="Reclassified PEPE_bioclim")
+
+## clip to Boreal geographic area
+# Load the polygon shapefile (SpatVector)
+GIS_Dir <- "//sfp.idir.bcgov/S140/S40203/Ecosystems/Conservation Science/Species/Mesocarnivores/Fisher_status/CDC_ESR/"
+# list.files(GIS_Dir) # check it works
+Boreal_aoi <- sf::st_read(dsn = GIS_Dir, layer="Boreal_boundary")
+
+ggplot()+
+  geom_sf(data=Boreal_aoi)
+
+# Ensure both have the same CRS
+Boreal_aoi <- st_transform(Boreal_aoi, crs = st_crs(PEPE_bioclim_reclass))
+
+# Filter to fisher region of interest
+aoi_filtered <- Boreal_aoi
+
+# Clip and mask raster to AOI
+clipped_raster <- crop(PEPE_bioclim_reclass, aoi_filtered)  # Crop to bounding box
+clipped_raster <- mask(clipped_raster, aoi_filtered)  # Mask to exact shape
+
+plot(clipped_raster)
 
 ###--- Export as both rasters and polygon shapefiles
 # Define file paths for output
@@ -97,8 +121,27 @@ writeVector(PEPE_bec_polygon, polygon_output_path, overwrite=TRUE)
 
 # Repeat for PEPE_bioclim
 raster_output_path2 <- "PEPE_bioclim_reclassified.tif"
-polygon_output_path2 <- "PEPE_bioclim_reclassified.shp"
+polygon_output_path2 <- "PEPE_bioclim_reclassified2.shp"
+polygon_output_path_Boreal <- "PEPE_bioclim_reclass_Boreal.shp"
 
 writeRaster(PEPE_bioclim_reclass, raster_output_path2, overwrite=TRUE, datatype="INT2S")
+
 PEPE_bioclim_polygon <- as.polygons(PEPE_bioclim_reclass, trunc=TRUE, dissolve=TRUE)
 writeVector(PEPE_bioclim_polygon, polygon_output_path2, overwrite=TRUE)
+
+PEPE_bioclim_Boreal_polygon <- as.polygons(clipped_raster, trunc=TRUE, dissolve=TRUE)
+writeVector(PEPE_bioclim_Boreal_polygon, polygon_output_path_Boreal, overwrite=TRUE)
+
+# Break down the one large multipolygon into individual polygons and remove smallest ones
+# Explode it into separate polygons
+
+PEPE_bioclim_Boreal_polygon <- st_as_sf(PEPE_bioclim_Boreal_polygon)
+
+# Boreal_main <- PEPE_bioclim_Boreal_polygon %>%
+#   st_cast("POLYGON") %>%
+#   mutate(area = st_area(.)) %>%
+#   filter(as.numeric(area) > 1e6)  # Only keep polygons larger than 10 million m²
+#   
+# st_write(Boreal_main, "PEPE_bioclim_Boreal_polygon2.shp", driver = "ESRI Shapefile", overwrite = TRUE)
+
+
