@@ -65,11 +65,12 @@ reclass_matrix_bec <- matrix(c(
 ), ncol = 3, byrow = TRUE)
 
 reclass_matrix_bio <- matrix(c(
-  0.00, 0.10, 1,  # not fisher habitat
-  0.10, 0.20, 2,  # unlikely fisher habitat
-  0.20, 0.40, 3,  # possible fisher habitat (dispersing)
-  0.40, 0.60, 4,  # likely fisher habitat
-  0.60, 1.00, 5   # suitable fisher habitat
+  0.00, 0.05, 1,  # not fisher habitat
+  0.05, 0.10, 2,  # unlikely fisher habitat
+  0.10, 0.20, 3,  # unlikely fisher habitat
+  0.20, 0.40, 4,  # possible fisher habitat (dispersing)
+  0.40, 0.60, 5,  # likely fisher habitat
+  0.60, 1.00, 6   # suitable fisher habitat
 ), ncol = 3, byrow = TRUE)
 
 # for Boreal bioclim (reclass2), with fewer sample locations went with a reclass  of <0.05 as not fisher habitat (1),
@@ -132,11 +133,16 @@ writeVector(PEPE_bioclim_polygon, polygon_output_path2, overwrite=TRUE)
 PEPE_bioclim_Boreal_polygon <- as.polygons(clipped_raster, trunc=TRUE, dissolve=TRUE)
 writeVector(PEPE_bioclim_Boreal_polygon, polygon_output_path_Boreal, overwrite=TRUE)
 
+######################################
+###--- check to summarise the RE area
+PEPE_bioclim_Boreal_sf <- st_as_sf(PEPE_bioclim_Boreal_polygon)
+
+PEPE_bioclim_Boreal_sf <- PEPE_bioclim_Boreal_sf %>% mutate(area=st_area(.))
+PEPE_bioclim_Boreal_sf %>% filter(PEPE_bioclim_elev_suitability != 1) %>% summarise(sum(area)) %>% st_drop_geometry()
+
+
 # Break down the one large multipolygon into individual polygons and remove smallest ones
 # Explode it into separate polygons
-
-PEPE_bioclim_Boreal_polygon <- st_as_sf(PEPE_bioclim_Boreal_polygon)
-
 # Boreal_main <- PEPE_bioclim_Boreal_polygon %>%
 #   st_cast("POLYGON") %>%
 #   mutate(area = st_area(.)) %>%
