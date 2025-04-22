@@ -66,8 +66,8 @@ reclass_matrix_bec <- matrix(c(
 
 reclass_matrix_bio <- matrix(c(
   0.00, 0.05, 1,  # not fisher habitat
-  0.05, 0.10, 2,  # unlikely fisher habitat
-  0.10, 0.20, 3,  # unlikely fisher habitat
+  0.05, 0.15, 2,  # unlikely fisher habitat
+  0.15, 0.20, 3,  # unlikely fisher habitat
   0.20, 0.40, 4,  # possible fisher habitat (dispersing)
   0.40, 0.60, 5,  # likely fisher habitat
   0.60, 1.00, 6   # suitable fisher habitat
@@ -90,15 +90,23 @@ plot(PEPE_bioclim_reclass, main="Reclassified PEPE_bioclim")
 GIS_Dir <- "//sfp.idir.bcgov/S140/S40203/Ecosystems/Conservation Science/Species/Mesocarnivores/Fisher_status/CDC_ESR/"
 # list.files(GIS_Dir) # check it works
 Boreal_aoi <- sf::st_read(dsn = GIS_Dir, layer="Boreal_boundary")
+Columbian_aoi <- sf::st_read(dsn = GIS_Dir, layer="Columbian_boundary")
 
 ggplot()+
   geom_sf(data=Boreal_aoi)
 
+
+ggplot()+
+  geom_sf(data=Columbian_aoi)
+
+
 # Ensure both have the same CRS
 Boreal_aoi <- st_transform(Boreal_aoi, crs = st_crs(PEPE_bioclim_reclass))
+Columbian_aoi <- st_transform(Columbian_aoi, crs = st_crs(PEPE_bioclim_reclass))
 
 # Filter to fisher region of interest
 aoi_filtered <- Boreal_aoi
+aoi_filtered <- Columbian_aoi
 
 # Clip and mask raster to AOI
 clipped_raster <- crop(PEPE_bioclim_reclass, aoi_filtered)  # Crop to bounding box
@@ -124,21 +132,23 @@ writeVector(PEPE_bec_polygon, polygon_output_path, overwrite=TRUE)
 raster_output_path2 <- "PEPE_bioclim_reclassified.tif"
 polygon_output_path2 <- "PEPE_bioclim_reclassified2.shp"
 polygon_output_path_Boreal <- "PEPE_bioclim_reclass_Boreal.shp"
+polygon_output_path_Columbian <- "PEPE_bioclim_reclass_Columbian.shp"
 
 writeRaster(PEPE_bioclim_reclass, raster_output_path2, overwrite=TRUE, datatype="INT2S")
 
 PEPE_bioclim_polygon <- as.polygons(PEPE_bioclim_reclass, trunc=TRUE, dissolve=TRUE)
 writeVector(PEPE_bioclim_polygon, polygon_output_path2, overwrite=TRUE)
 
-PEPE_bioclim_Boreal_polygon <- as.polygons(clipped_raster, trunc=TRUE, dissolve=TRUE)
-writeVector(PEPE_bioclim_Boreal_polygon, polygon_output_path_Boreal, overwrite=TRUE)
+PEPE_bioclim_Columbian_polygon <- as.polygons(clipped_raster, trunc=TRUE, dissolve=TRUE)
+writeVector(PEPE_bioclim_Columbian_polygon, polygon_output_path_Columbian, overwrite=TRUE)
 
 ######################################
 ###--- check to summarise the RE area
-PEPE_bioclim_Boreal_sf <- st_as_sf(PEPE_bioclim_Boreal_polygon)
+PEPE_bioclim_sf <- st_as_sf(PEPE_bioclim_Columbian_polygon)
 
-PEPE_bioclim_Boreal_sf <- PEPE_bioclim_Boreal_sf %>% mutate(area=st_area(.))
-PEPE_bioclim_Boreal_sf %>% filter(PEPE_bioclim_elev_suitability != 1) %>% summarise(sum(area)) %>% st_drop_geometry()
+PEPE_bioclim_sf <- PEPE_bioclim_sf %>% mutate(area=st_area(.))
+PEPE_bioclim_sf %>% filter(PEPE_bioclim_elev_suitability != 1) %>% summarise(sum(area)) %>% st_drop_geometry()
+PEPE_bioclim_sf %>% summarise(sum(area)) %>% st_drop_geometry()
 
 
 # Break down the one large multipolygon into individual polygons and remove smallest ones
